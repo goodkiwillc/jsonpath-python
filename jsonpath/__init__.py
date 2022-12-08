@@ -46,6 +46,7 @@ class JSONPath:
     RESULT_TYPE = {
         "VALUE": "A list of specific values.",
         "PATH": "All path of specific values.",
+        "DICT": "A dict of paths and values.",
     }
 
     # common patterns
@@ -98,10 +99,16 @@ class JSONPath:
         self.result_type = result_type
         self.eval_func = eval_func
 
-        self.result = []
+        # self.result = []
+        self.result = defaultdict(list)
         self._trace(obj, 0, "$")
 
-        return self.result
+        if self.result_type == "VALUE":
+            return [i for l in list(self.result.values()) for i in l]
+        elif self.result_type == "PATH":
+            return list(self.result.keys())
+        elif self.result_type == "DICT":
+            return self.result
 
     def search(self, obj, result_type="VALUE"):
         return self.parse(obj, result_type)
@@ -230,11 +237,12 @@ class JSONPath:
 
         # store
         if i >= self.lpath:
-            if self.result_type == "VALUE":
-                self.result.append(obj)
-            elif self.result_type == "PATH":
-                self.result.append(path)
-            logger.debug(f"path: {path} | value: {obj}")
+            self.result[path].append(obj)
+            # if self.result_type == "VALUE":
+            #     self.result.append(obj)
+            # elif self.result_type == "PATH":
+            #     self.result.append(path)
+            # logger.debug(f"path: {path} | value: {obj}")
             return
 
         step = self.segments[i]
