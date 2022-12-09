@@ -68,7 +68,7 @@ class JSONPath:
     REP_SLICE_CONTENT = re.compile(r"^(-?\d*)?:(-?\d*)?(:-?\d*)?$")
     REP_SELECT_CONTENT = re.compile(r"^([\w.']+)(, ?[\w.']+)+$")
     REP_FILTER_CONTENT = re.compile(
-        r"@\.(.*?)(?=<=|>=|==|!=|>|<| in| not| is)|len\(@\.(.*?)\)"
+        r"@\.(.*?)(?=<=|>=|==|=\~|!=|>|<| in| not| is)|len\(@\.(.*?)\)"
     )
 
     # annotations
@@ -104,11 +104,12 @@ class JSONPath:
         self._trace(obj, 0, "$")
 
         if self.result_type == "VALUE":
-            return [i for l in list(self.result.values()) for i in l]
+            return [i for sublist in list(self.result.values())
+                    for i in sublist]
         elif self.result_type == "PATH":
             return list(self.result.keys())
         elif self.result_type == "DICT":
-            return self.result
+            return dict(self.result)
 
     def search(self, obj, result_type="VALUE"):
         return self.parse(obj, result_type)
@@ -190,7 +191,7 @@ class JSONPath:
             try:
                 r = r.get(k)
             except (AttributeError, KeyError) as err:
-                logger.error(err)
+                logger.debug(err)
                 return None
         if convert_number_str and isinstance(r, str):
             try:
@@ -221,9 +222,12 @@ class JSONPath:
     def _filter(self, obj, i: int, path: str, step: str):
         r = False
         try:
+            if '=~' in step:
+                field, val = step.split('=~')
+                step = f're.search(r{val}, {field}) is not None'
             r = self.eval_func(step, None, {"__obj": obj})
         except Exception as err:
-            logger.error(err)
+            logger.debug(err)
         if r:
             self._trace(obj, i, path)
 
